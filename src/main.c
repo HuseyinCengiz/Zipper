@@ -5,6 +5,7 @@
 #include "../include/fields.h"
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 #define HEADER_LENGTH 1000
 
@@ -89,6 +90,64 @@ void makeHeader(char *fileNames[],int numberFiles){
     }
 }
 
+
+/* This routine returns the size of the file it is called with. */
+
+static unsigned
+get_file_size (const char * file_name)
+{
+    struct stat sb;
+    if (stat (file_name, & sb) != 0) {
+        fprintf (stderr, "'stat' failed for '%s': %s.\n",
+                 file_name, strerror (errno));
+        exit (EXIT_FAILURE);
+    }
+    return sb.st_size;
+}
+
+/* This routine reads the entire file into memory. */
+
+static unsigned char *
+read_whole_file (const char * file_name)
+{
+    unsigned s;
+    unsigned char * contents;
+    FILE * f;
+    size_t bytes_read;
+    int status;
+
+    s = get_file_size (file_name);
+    contents = malloc (s + 1);
+    if (! contents) {
+        fprintf (stderr, "Not enough memory.\n");
+        exit (EXIT_FAILURE);
+    }
+
+    f = fopen (file_name, "r");
+    if (! f) {
+        fprintf (stderr, "Could not open '%s': %s.\n", file_name,
+                 strerror (errno));
+        exit (EXIT_FAILURE);
+    }
+    bytes_read = fread (contents, sizeof (unsigned char), s, f);
+    if (bytes_read != s) {
+        fprintf (stderr, "Short read of '%s': expected %d bytes "
+                         "but got %d: %s.\n", file_name, s, bytes_read,
+                 strerror (errno));
+        exit (EXIT_FAILURE);
+    }
+    status = fclose (f);
+    if (status != 0) {
+        fprintf (stderr, "Error closing '%s': %s.\n", file_name,
+                 strerror (errno));
+        exit (EXIT_FAILURE);
+    }
+    return contents;
+}
+
+
+
+
 void zip(IS is){
     char *fileName="a.sau";
     bool isDefault = checkDefaultFileName(is);
@@ -97,10 +156,25 @@ void zip(IS is){
     makeHeader(fileNames,numberFiles);
     FILE *fp;
     fp=fopen(fileName,"wa");
-    fprintf(fp,"%010d|%s",strlen(my_header)+11,my_header);
+    fprintf(fp,"%010d|%s",strlen(my_header) + 11,my_header);
+
+    for (int i = 0; i < numberFiles; ++i) {
+
+        IS is = new_inputstruct(fileNames[i]);
+        while (get_line(is) >= 0) {
+            for (i = 0; i < is->NF; i++) {
+                char * line = malloc(strlen(is->fields[i]));
+                strcpy(line, is->fields[i]);
+
+                fprintf(fp, strlen(line), line );
+            }
+        }
+    }
+
     fclose(fp);
 
 }
+
 
 void unzip(){
 
@@ -120,26 +194,6 @@ void parse_line(IS is){
     } else{
       printf("Lütfen düzgün bir komut giriniz.\n");
     }
-}
-
-char *trimwhitespace(char *str)
-{
-    char *end;
-
-    // Trim leading space
-    while(isspace((unsigned char)*str)) str++;
-
-    if(*str == 0)  // All spaces?
-        return str;
-
-    // Trim trailing space
-    end = str + strlen(str) - 1;
-    while(end > str && isspace((unsigned char)*end)) end--;
-
-    // Write new null terminator character
-    end[1] = '\0';
-
-    return str;
 }
 
 
