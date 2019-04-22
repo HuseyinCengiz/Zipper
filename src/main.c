@@ -2,11 +2,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../include/fields.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+
 
 typedef enum boolean{
     false = 0,
     true = 1
 } bool;
+
+int calculateSizeofFiles(char *fileNames[],int fileNumber){
+    struct stat buf;
+    int exists,sum=0;
+    for(int i=0;i<fileNumber;i++){
+       exists=stat(fileNames[i],&buf);
+       if(exists >= 0){
+           sum+=buf.st_size;
+       }
+    }
+    return sum;
+}
 
 
 char ** getFileNames(IS is,int numberFiles){
