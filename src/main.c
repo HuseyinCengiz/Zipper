@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "../include/fields.h"
 
 typedef enum boolean{
@@ -9,8 +10,12 @@ typedef enum boolean{
 } bool;
 
 
+static int header_size = 0;
+static char * header_size_array[10];
+
+
 char ** getFileNames(IS is,int numberFiles){
-    char ** files =(char *) malloc(sizeof(char *) * numberFiles);
+    char ** files = (char **) malloc(sizeof(char *) * numberFiles);
     for(int i=0;i<numberFiles;i++){
       files[i]=strdup(is->fields[i+2]);
     }
@@ -18,18 +23,28 @@ char ** getFileNames(IS is,int numberFiles){
 }
 
 
-void zip(IS is){
-    bool isDefaultFileName = false;
-    int numberFiles = 0;
-
-    if(!(strcmp(is->fields[is->NF-2],"-o") == 0)){
-        isDefaultFileName=true;
+bool checkDefaultFileName(IS is) {
+   if(strcmp(is->fields[is->NF - 2], "-o") != 0){
+        return true;
     }else {
-        isDefaultFileName=false;
-        numberFiles = is->NF-4;
-        char ** fileNameNames = getFileNames(is,numberFiles);
+        return false;
     }
 }
+
+void zip(IS is){
+    bool isDefault = checkDefaultFileName(is);
+    int numberFiles = isDefault ? is->NF - 2 : is-> NF - 4 ;
+    char ** fileNames = getFileNames(is,numberFiles);
+
+    for(int i = 0; i < numberFiles; i++) {
+        char * fileName = fileNames[i];
+        IS is = new_inputstruct(fileName);
+        printf("%s", is->name);
+    }
+
+
+}
+
 
 void unzip(){
 
@@ -50,6 +65,27 @@ void parse_line(IS is){
       printf("Lütfen düzgün bir komut giriniz.\n");
     }
 }
+
+char *trimwhitespace(char *str)
+{
+    char *end;
+
+    // Trim leading space
+    while(isspace((unsigned char)*str)) str++;
+
+    if(*str == 0)  // All spaces?
+        return str;
+
+    // Trim trailing space
+    end = str + strlen(str) - 1;
+    while(end > str && isspace((unsigned char)*end)) end--;
+
+    // Write new null terminator character
+    end[1] = '\0';
+
+    return str;
+}
+
 
 int main(int argc, char **argv) {
     IS is = new_inputstruct(NULL);
