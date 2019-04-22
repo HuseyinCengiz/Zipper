@@ -6,11 +6,14 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#define HEADER_LENGTH 1000
 
 typedef enum boolean{
     false = 0,
     true = 1
 } bool;
+
+static char my_header[HEADER_LENGTH];
 
 int calculateSizeofFiles(char *fileNames[],int fileNumber) {
     struct stat buf;
@@ -24,11 +27,6 @@ int calculateSizeofFiles(char *fileNames[],int fileNumber) {
     return sum;
 }
 
-
-static int header_size = 0;
-static char * header_size_array[10];
-
-
 char ** getFileNames(IS is,int numberFiles){
     char ** files = (char **) malloc(sizeof(char *) * numberFiles);
     for(int i=0;i<numberFiles;i++){
@@ -36,7 +34,6 @@ char ** getFileNames(IS is,int numberFiles){
     }
     return  files;
 }
-
 
 bool checkDefaultFileName(IS is) {
    if(strcmp(is->fields[is->NF - 2], "-o") != 0){
@@ -46,15 +43,12 @@ bool checkDefaultFileName(IS is) {
     }
 }
 
-
-
-char * readStat(char * fileName){
+char * readPermission(char * fileName){
     struct stat fileStat;
     if(stat(fileName,&fileStat) < 0){
         printf("Dosya okumada hata!");
         exit(EXIT_FAILURE);
     }
-
 
     int u = ((fileStat.st_mode & S_IRUSR) ? 4 : 0)  + ((fileStat.st_mode & S_IWUSR) ? 2 : 0) + ((fileStat.st_mode & S_IXUSR) ? 1 : 0);
     int g = ((fileStat.st_mode & S_IRGRP) ? 4 : 0)  + ((fileStat.st_mode & S_IWGRP) ? 2 : 0) + ((fileStat.st_mode & S_IXGRP) ? 1 : 0);
@@ -64,29 +58,48 @@ char * readStat(char * fileName){
     char* gString = malloc(sizeof(char));
     char* oString = malloc(sizeof(char));
     sprintf(uString, "%d", u);
-    sprintf(gString, "%d", u);
-    sprintf(oString, "%d", u);
+    sprintf(gString, "%d", g);
+    sprintf(oString, "%d", o);
 
     char * permission = malloc(sizeof(char) * 5);
-    strcpy(permission, "0");
-    strcat(permission, u);
-    strcat(permission, g);
-    strcat(permission, o);
-    strcat(permission, "\0");
+    strcpy(permission,"0");
+    strcat(permission,uString);
+    strcat(permission,gString);
+    strcat(permission,oString);
+    strcat(permission,"\0");
     return permission;
+}
+int readSize(char * fileName){
+    struct stat fileStat;
+    if(stat(fileName,&fileStat) < 0){
+        printf("Dosya okumada hata!");
+        exit(EXIT_FAILURE);
+    }
+    return fileStat.st_size;
+}
+
+void makeHeader(char *fileNames[],int numberFiles){
+    char line[1000];
+    for(int i = 0; i < numberFiles; i++) {
+        IS is = new_inputstruct(fileNames[i]);
+        char * permission = readPermission(fileNames[i]);
+        int fileSize = readSize(fileNames[i]);
+        sprintf(line,"%s,%s,%d|",fileNames[i],permission,fileSize);
+        strcat(my_header,line);
+    }
 }
 
 void zip(IS is){
+    char *fileName="a.sau";
     bool isDefault = checkDefaultFileName(is);
     int numberFiles = isDefault ? is->NF - 2 : is-> NF - 4 ;
     char ** fileNames = getFileNames(is,numberFiles);
+    makeHeader(fileNames,numberFiles);
+    FILE *fp;
+    fp=fopen(fileName,"wa");
+    fprintf(fp,"%010d|%s",strlen(my_header)+11,my_header);
+    fclose(fp);
 
-    for(int i = 0; i < numberFiles; i++) {
-        char * fileName = fileNames[i];
-        IS is = new_inputstruct(fileName);
-        printf("%s", is->name);
-        readStat(fileName);
-    }
 }
 
 void unzip(){
