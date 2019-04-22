@@ -12,7 +12,7 @@ typedef enum boolean{
     true = 1
 } bool;
 
-int calculateSizeofFiles(char *fileNames[],int fileNumber){
+int calculateSizeofFiles(char *fileNames[],int fileNumber) {
     struct stat buf;
     int exists,sum=0;
     for(int i=0;i<fileNumber;i++){
@@ -46,6 +46,36 @@ bool checkDefaultFileName(IS is) {
     }
 }
 
+
+
+char * readStat(char * fileName){
+    struct stat fileStat;
+    if(stat(fileName,&fileStat) < 0){
+        printf("Dosya okumada hata!");
+        exit(EXIT_FAILURE);
+    }
+
+
+    int u = ((fileStat.st_mode & S_IRUSR) ? 4 : 0)  + ((fileStat.st_mode & S_IWUSR) ? 2 : 0) + ((fileStat.st_mode & S_IXUSR) ? 1 : 0);
+    int g = ((fileStat.st_mode & S_IRGRP) ? 4 : 0)  + ((fileStat.st_mode & S_IWGRP) ? 2 : 0) + ((fileStat.st_mode & S_IXGRP) ? 1 : 0);
+    int o = ((fileStat.st_mode & S_IROTH) ? 4 : 0)  + ((fileStat.st_mode & S_IWOTH) ? 2 : 0) + ((fileStat.st_mode & S_IXOTH) ? 1 : 0);
+
+    char* uString = malloc(sizeof(char));
+    char* gString = malloc(sizeof(char));
+    char* oString = malloc(sizeof(char));
+    sprintf(uString, "%d", u);
+    sprintf(gString, "%d", u);
+    sprintf(oString, "%d", u);
+
+    char * permission = malloc(sizeof(char) * 5);
+    strcpy(permission, "0");
+    strcat(permission, u);
+    strcat(permission, g);
+    strcat(permission, o);
+    strcat(permission, "\0");
+    return permission;
+}
+
 void zip(IS is){
     bool isDefault = checkDefaultFileName(is);
     int numberFiles = isDefault ? is->NF - 2 : is-> NF - 4 ;
@@ -55,11 +85,9 @@ void zip(IS is){
         char * fileName = fileNames[i];
         IS is = new_inputstruct(fileName);
         printf("%s", is->name);
+        readStat(fileName);
     }
-
-
 }
-
 
 void unzip(){
 
