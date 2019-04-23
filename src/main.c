@@ -7,7 +7,8 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-#define HEADER_LENGTH 1000
+#define HEADER_LENGTH 10000
+#define BODY_LINE_LENGTH 10000
 
 typedef enum boolean{
     false = 0,
@@ -35,15 +36,23 @@ char ** getFileNames(IS is,int numberFiles){
     }
     return  files;
 }
-
-bool checkDefaultFileName(IS is) {
-   if(strcmp(is->fields[is->NF - 2], "-o") != 0){
-        return true;
+int getNumberFiles(IS is){
+    if(strcmp(is->fields[is->NF - 2], "-o") != 0){
+        if(strcmp(is->fields[is->NF - 1], "-o") == 0){
+            return is->NF-3;
+        }
+        return is->NF-2;
     }else {
-        return false;
+        return is->NF-4;
     }
 }
-
+char * checkDefaultFileName(IS is) {
+   if(strcmp(is->fields[is->NF - 2], "-o") != 0){
+        return strdup("a.sau");
+    }else {
+        return strdup(is->fields[is->NF-1]);
+    }
+}
 char * readPermission(char * fileName){
     struct stat fileStat;
     if(stat(fileName,&fileStat) < 0){
@@ -78,9 +87,9 @@ int readSize(char * fileName){
     }
     return fileStat.st_size;
 }
-
 void makeHeader(char *fileNames[],int numberFiles){
     char line[1000];
+    strcpy(my_header,"");
     for(int i = 0; i < numberFiles; i++) {
         IS is = new_inputstruct(fileNames[i]);
         char * permission = readPermission(fileNames[i]);
@@ -89,90 +98,30 @@ void makeHeader(char *fileNames[],int numberFiles){
         strcat(my_header,line);
     }
 }
-
-
-/* This routine returns the size of the file it is called with. */
-
-static unsigned
-get_file_size (const char * file_name)
-{
-    struct stat sb;
-    if (stat (file_name, & sb) != 0) {
-        fprintf (stderr, "'stat' failed for '%s': %s.\n",
-                 file_name, strerror (errno));
-        exit (EXIT_FAILURE);
-    }
-    return sb.st_size;
-}
-
-/* This routine reads the entire file into memory. */
-
-static unsigned char *
-read_whole_file (const char * file_name)
-{
-    unsigned s;
-    unsigned char * contents;
-    FILE * f;
-    size_t bytes_read;
-    int status;
-
-    s = get_file_size (file_name);
-    contents = malloc (s + 1);
-    if (! contents) {
-        fprintf (stderr, "Not enough memory.\n");
-        exit (EXIT_FAILURE);
-    }
-
-    f = fopen (file_name, "r");
-    if (! f) {
-        fprintf (stderr, "Could not open '%s': %s.\n", file_name,
-                 strerror (errno));
-        exit (EXIT_FAILURE);
-    }
-    bytes_read = fread (contents, sizeof (unsigned char), s, f);
-    if (bytes_read != s) {
-        fprintf (stderr, "Short read of '%s': expected %d bytes "
-                         "but got %d: %s.\n", file_name, s, bytes_read,
-                 strerror (errno));
-        exit (EXIT_FAILURE);
-    }
-    status = fclose (f);
-    if (status != 0) {
-        fprintf (stderr, "Error closing '%s': %s.\n", file_name,
-                 strerror (errno));
-        exit (EXIT_FAILURE);
-    }
-    return contents;
-}
-
-
-
-
-void zip(IS is){
-    char *fileName="a.sau";
-    bool isDefault = checkDefaultFileName(is);
-    int numberFiles = isDefault ? is->NF - 2 : is-> NF - 4 ;
-    char ** fileNames = getFileNames(is,numberFiles);
-    makeHeader(fileNames,numberFiles);
+void writeToFile(char * fileName,char **fileNames,int numberFiles){
     FILE *fp;
-    fp=fopen(fileName,"wa");
+    fp = fopen(fileName,"wa");
     fprintf(fp,"%010d|%s",strlen(my_header) + 11,my_header);
-
+    char line[BODY_LINE_LENGTH];
     for (int i = 0; i < numberFiles; ++i) {
-
-        IS is = new_inputstruct(fileNames[i]);
-        while (get_line(is) >= 0) {
-            for (i = 0; i < is->NF; i++) {
-                char * line = malloc(strlen(is->fields[i]));
-                strcpy(line, is->fields[i]);
-
-                fprintf(fp, strlen(line), line );
+        IS myFile = new_inputstruct(fileNames[i]);
+        while (get_line(myFile) >= 0) {
+            strcpy(line,"");
+            for (int j = 0; j < myFile->NF; j++) {
+                sprintf(line,"%s",strdup(myFile->fields[j]));
             }
+            fprintf(fp,"%s\n",line);
         }
     }
-
     fclose(fp);
+}
 
+void zip(IS is){
+    char * fileName = checkDefaultFileName(is);
+    int numberFiles = getNumberFiles(is);
+    char ** fileNames = getFileNames(is,numberFiles);
+    makeHeader(fileNames,numberFiles);
+    writeToFile(fileName,fileNames,numberFiles);
 }
 
 
