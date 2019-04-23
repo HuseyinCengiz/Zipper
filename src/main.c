@@ -115,13 +115,25 @@ void writeToFile(char * fileName,char **fileNames,int numberFiles){
     }
     fclose(fp);
 }
-
+bool zipControl(char **fileNames,int numberFiles){
+    if(numberFiles>32){
+        printf("Giriş dosyalarının adedi 32'den fazla olamaz");
+        return false;
+    }
+    if(calculateSizeofFiles(fileNames,numberFiles)>209715200){
+        printf("Giriş dosyalarının toplam boyutu 200 MByte'dan fazla olamaz.");
+        return false;
+    }
+    return true;
+}
 void zip(IS is){
     char * fileName = checkDefaultFileName(is);
     int numberFiles = getNumberFiles(is);
     char ** fileNames = getFileNames(is,numberFiles);
-    makeHeader(fileNames,numberFiles);
-    writeToFile(fileName,fileNames,numberFiles);
+    if(zipControl(fileNames,numberFiles)){
+        makeHeader(fileNames,numberFiles);
+        writeToFile(fileName,fileNames,numberFiles);
+    }
 }
 
 
