@@ -102,15 +102,10 @@ void writeToFile(char * fileName,char **fileNames,int numberFiles){
     FILE *fp;
     fp = fopen(fileName,"wa");
     fprintf(fp,"%010d|%s",strlen(my_header) + 11,my_header);
-    char line[BODY_LINE_LENGTH];
     for (int i = 0; i < numberFiles; ++i) {
         IS myFile = new_inputstruct(fileNames[i]);
         while (get_line(myFile) >= 0) {
-            strcpy(line,"");
-            for (int j = 0; j < myFile->NF; j++) {
-                sprintf(line,"%s",strdup(myFile->fields[j]));
-            }
-            fprintf(fp,"%s\n",line);
+            fprintf(fp,"%s",strdup(myFile->text1));
         }
     }
     fclose(fp);
